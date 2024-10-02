@@ -2,10 +2,11 @@ from json.encoder import INFINITY
 
 
 class Simplex:
-    def __init__(self, z, constraints, solution):
+    def __init__(self, z, constraints, constraints_rhs):
         self.z = z
         self.constraints = constraints
-        self.solution = solution
+        self.constraints_rhs = constraints_rhs
+        self.solution = 0
         self.constraints_number = len(constraints)
         self.variables_number = len(constraints[0])
         self.basis = list(range(self.variables_number, self.variables_number + self.constraints_number))
@@ -59,8 +60,7 @@ class Simplex:
             if self.constraints[i][entering_index] <= 0:
                 continue
 
-            # Index of solution is [i + 1] because it also contains z-row value
-            ratio = solution[i + 1] / self.constraints[i][entering_index]
+            ratio = self.constraints_rhs[i] / self.constraints[i][entering_index]
 
             if ratio < min_elem:
                 min_elem = ratio
@@ -81,9 +81,9 @@ if __name__ == '__main__':
         [-1, 1],
         [1, 0],
     ]
-    solution = [0, 24, 6, 1, 2]
+    constraints_rhs = [24, 6, 1, 2]
 
-    simplex_method = Simplex(z, constraints, solution)
+    simplex_method = Simplex(z, constraints, constraints_rhs)
 
     entering = simplex_method.define_entering()
     leaving = simplex_method.define_leaving(entering)
