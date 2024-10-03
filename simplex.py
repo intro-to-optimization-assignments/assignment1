@@ -22,6 +22,7 @@ class Simplex:
                   self._basic_variables_number + self._constraints_number)
         )
         self._accuracy = accuracy
+        self.__equally_negative_variables = []
 
         for i in range(self._constraints_number):
             constraints[i] += [0] * self._constraints_number
@@ -42,6 +43,12 @@ class Simplex:
                 return self._solution
 
             entering = self._define_entering()
+
+            # Checking if at least one of the possible entering values is applicable
+            for elem in self.__equally_negative_variables:
+                if self._is_applicable(elem):
+                    entering = elem
+                    break
 
             if not self._is_applicable(entering):
                 print("The method is not applicable!")
@@ -67,6 +74,10 @@ class Simplex:
             if elem < min_z:
                 min_z = elem
                 entering_index = self._z.index(elem)
+
+        # Filling the list in case we have several maximally negative variables in z-row
+        self.__equally_negative_variables = \
+            [i for i in range(self._variables_number) if self._z[i] == self._z[entering_index]]
 
         return entering_index
 
@@ -221,8 +232,6 @@ def main():
                                           accuracy)
     inapplicable = simplex_method_inapplicable.compute_maximum()
     print(inapplicable is None)
-
-
 
 
 if __name__ == '__main__':
