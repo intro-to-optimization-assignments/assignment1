@@ -34,7 +34,6 @@ class Simplex:
 
         # [2, 3, 4, 5]
 
-
     # Gets the index of the entering variable from the z-row
     def define_entering(self):
         min_z = 0
@@ -49,7 +48,6 @@ class Simplex:
                 entering_index = self.z.index(elem)
 
         return entering_index
-
 
     # Gets the index of the leaving variable from the z-row
     def define_leaving(self, entering_index):
@@ -70,10 +68,19 @@ class Simplex:
 
         return leaving_index
 
+    # Returns True if there is at least one negative element in z-row
+    def can_continue(self):
+        for elem in self.z:
+            if elem < 0: return True
+
+    # Returns True if for entering variable
+    # there is at least one positive value in constraints
+    def is_applicable(self, entering_index):
+        for elem in self.constraints[entering_index]:
+            if elem > 0: return True
 
 
-
-if __name__ == '__main__':
+def main():
     z = [5, 4]
     constraints = [
         [6, 4],
@@ -89,3 +96,8 @@ if __name__ == '__main__':
     leaving = simplex_method.define_leaving(entering)
 
     print(entering, leaving)
+    print(simplex_method.can_continue(), simplex_method.is_applicable(entering))
+
+
+if __name__ == '__main__':
+    main()
