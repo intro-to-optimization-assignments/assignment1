@@ -45,9 +45,9 @@ class Simplex:
             entering = self._define_entering()
 
             # Checking if at least one of the possible entering values is applicable
-            for elem in self.__equally_negative_variables:
-                if self._is_applicable(elem):
-                    entering = elem
+            for variable in self.__equally_negative_variables:
+                if self._is_applicable(variable):
+                    entering = variable
                     break
 
             if not self._is_applicable(entering):
@@ -59,7 +59,7 @@ class Simplex:
 
     # Computes the minimum value for z
     def compute_minimum(self):
-        self._z = [-elem for elem in self._z]
+        self._z = [-variable for variable in self._z]
         return -self.compute_maximum()
 
     # Gets the index of the entering variable from the z-row
@@ -67,13 +67,13 @@ class Simplex:
         min_z = 0
         entering_index = -1
 
-        for elem in self._z:
-            if elem >= 0:
+        for variable in self._z:
+            if variable >= 0:
                 continue
 
-            if elem < min_z:
-                min_z = elem
-                entering_index = self._z.index(elem)
+            if variable < min_z:
+                min_z = variable
+                entering_index = self._z.index(variable)
 
         # Filling the list in case we have several maximally negative variables in z-row
         self.__equally_negative_variables = \
@@ -170,8 +170,8 @@ class Simplex:
 
     # Returns True if there is at least one negative element in z-row
     def _can_continue(self):
-        for elem in self._z:
-            if elem < 0: return True
+        for variable in self._z:
+            if variable < 0: return True
         return False
 
     # Returns True if for entering variable
@@ -186,52 +186,32 @@ class Simplex:
         return round(num, self._accuracy)
 
 
+# Reads input and gets z, constraints, constraints_rhs, and accuracy
+def read_input():
+    z = list(map(float, input("A vector of coefficients of objective function: ").split()))
+
+    print("A matrix of coefficients of constraint function:")
+    constraints = []
+    constraint = list(map(float, input().split()))
+    constraints_number = len(constraint)
+    constraints.append(constraint)
+
+    for _ in range(constraints_number - 1):
+        constraint = list(map(float, input().split()))
+        constraints.append(constraint)
+
+    constraints_rhs = list(map(float, input("A vector of right-hand side numbers: ").split()))
+
+    accuracy = int(input("The approximation accuracy: "))
+
+    return z, constraints, constraints_rhs, accuracy
+
+
 def main():
-    accuracy = 4
-
-    z_mx = [9, 10, 16]
-    constraints_mx = [
-        [18, 15, 12],
-        [6, 4, 8],
-        [5, 3, 3],
-    ]
-    constraints_rhs_mx = [360, 192, 180]
-
-    z_mn = [-2, 2, -6]
-    constraints_mn = [
-        [2, 1, -2],
-        [1, 2, 4],
-        [1, -1, 2],
-    ]
-    constraints_rhs_mn = [24, 23, 10]
-
-    z_inapplicable = [1, 1]
-    constraints_inapplicable = [
-        [-1, 1],
-        [-1, -1],
-    ]
-    constraints_rhs_inapplicable = [1, -2]
-
-    simplex_method_mx = Simplex(z_mx,
-                                constraints_mx,
-                                constraints_rhs_mx,
-                                accuracy)
-    maximum = simplex_method_mx.compute_maximum()
-    print(maximum)
-
-    simplex_method_mn = Simplex(z_mn,
-                                constraints_mn,
-                                constraints_rhs_mn,
-                                accuracy)
-    minimum = simplex_method_mn.compute_minimum()
-    print(minimum)
-
-    simplex_method_inapplicable = Simplex(z_inapplicable,
-                                          constraints_inapplicable,
-                                          constraints_rhs_inapplicable,
-                                          accuracy)
-    inapplicable = simplex_method_inapplicable.compute_maximum()
-    print(inapplicable is None)
+    z, constraints, constraints_rhs, accuracy = read_input()
+    simplex_method = Simplex(z, constraints, constraints_rhs, accuracy)
+    maximum = simplex_method.compute_maximum()
+    if not maximum is None: print(maximum)
 
 
 if __name__ == '__main__':
