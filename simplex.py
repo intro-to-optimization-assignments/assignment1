@@ -1,163 +1,228 @@
 from json.encoder import INFINITY
 
 
+# Prints the basic variables as "x1 = basic_variables_values[0], x2 = basic_variables_values[1],... "
+def format_output(basic_variables_values):
+    formatted_output = ", ".join(f"x{i + 1} = {value}" for i, value in enumerate(basic_variables_values))
+    print(formatted_output)
+
+
 class Simplex:
     def __init__(self, z, constraints, constraints_rhs, accuracy):
-        self.z = z
-        self.constraints = constraints
-        self.constraints_rhs = constraints_rhs
-        self.solution = 0
-        self.constraints_number = len(constraints)
-        self.variables_number = len(constraints[0])
-        self.basis = list(range(self.variables_number, self.variables_number + self.constraints_number))
-        self.accuracy = accuracy
+        self._z = z
+        self._constraints = constraints
+        self._constraints_rhs = constraints_rhs
+        self._solution = 0
+        self._constraints_number = len(constraints)
+        self._basic_variables_number = len(constraints[0])
+        self._variables_number = self._basic_variables_number + self._constraints_number
+        self._basic_variables = list(range(self._basic_variables_number))
+        self._basis = list(
+            range(self._basic_variables_number,
+                  self._basic_variables_number + self._constraints_number)
+        )
+        self._accuracy = accuracy
 
-        for i in range(self.constraints_number):
-            constraints[i] += [0] * self.constraints_number
-            constraints[i][self.variables_number + i] = 1
+        for i in range(self._constraints_number):
+            constraints[i] += [0] * self._constraints_number
+            constraints[i][self._basic_variables_number + i] = 1
 
-        for i in range(self.variables_number):
-            self.z[i] *= -1
+        for i in range(self._basic_variables_number):
+            self._z[i] *= -1
 
-        self.z += [0] * self.constraints_number
-        self.variables_number = len(self.constraints[0])
+        self._z += [0] * self._constraints_number
 
-        # print(self.z)
-        # print(self.constraints)
-        # print(self.basis)
+    # Computes the maximum value for z
+    def compute_maximum(self):
+        while True:
+            if not self._can_continue():
+                basic_variables_values = self._get_basic_variables_values()
 
-        # [-5, -4, 0, 0, 0, 0]
-        # [
-        # [6, 4, 1, 0, 0, 0],
-        # [1, 2, 0, 1, 0, 0],
-        # [-1, 1, 0, 0, 1, 0],
-        # [1, 0, 0, 0, 0, 1],
-        # ]
+                format_output(basic_variables_values)
+                return self._solution
 
-        # [2, 3, 4, 5]
+            entering = self._define_entering()
+
+            if not self._is_applicable(entering):
+                print("The method is not applicable!")
+                return None
+
+            leaving = self._define_leaving(entering)
+            self._change_pivot(entering, leaving)
+
+    # Computes the minimum value for z
+    def compute_minimum(self):
+        self._z = [-elem for elem in self._z]
+        return -self.compute_maximum()
 
     # Gets the index of the entering variable from the z-row
-    def define_entering(self):
+    def _define_entering(self):
         min_z = 0
         entering_index = -1
 
-        for elem in self.z:
+        for elem in self._z:
             if elem >= 0:
                 continue
 
             if elem < min_z:
                 min_z = elem
-                entering_index = self.z.index(elem)
+                entering_index = self._z.index(elem)
 
         return entering_index
 
     # Gets the index of the leaving variable from the z-row
-    def define_leaving(self, entering_index):
+    def _define_leaving(self, entering_index):
         min_elem = INFINITY
         basis_leaving_index = -1
 
-        for i in range(self.constraints_number):
-            if self.constraints[i][entering_index] <= 0:
+        for i in range(self._constraints_number):
+            if self._constraints[i][entering_index] <= 0:
                 continue
 
-            ratio = self.constraints_rhs[i] / self.constraints[i][entering_index]
+            ratio = self._constraints_rhs[i] / self._constraints[i][entering_index]
 
             if ratio < min_elem:
                 min_elem = ratio
                 basis_leaving_index = i
 
-        leaving_index = self.basis[basis_leaving_index]
+        leaving_index = self._basis[basis_leaving_index]
 
         return leaving_index
 
     # Changes the "table" for a new pivot
-    def change_pivot(self, entering_index, leaving_index):
-        basis_index = self.basis.index(leaving_index)
-        self.basis[basis_index] = entering_index
-        print(self.basis)
+    def _change_pivot(self, entering_index, leaving_index):
+        basis_index = self._basis.index(leaving_index)
+        self._basis[basis_index] = entering_index
 
-        for constr_id in range(self.constraints_number):
+        self._update_constraints(basis_index, entering_index)
+        self._update_z_row(basis_index, entering_index)
 
-            # If it is a pivot row then we divide it such that the pivot variable = 1
+    # Updates the whole "table"
+    def _update_constraints(self, basis_index, entering_index):
+        for constr_id in range(self._constraints_number):
             if constr_id == basis_index:
-                divisor = self.constraints[constr_id][entering_index]
-
-                for var_id in range(self.variables_number):
-                    self.constraints[constr_id][var_id] = self.format(
-                        self.constraints[constr_id][var_id] / divisor
-                    )
-                self.constraints_rhs[constr_id] = self.format(
-                    self.constraints_rhs[constr_id] / divisor
-                )
-
-            # Else we sum current row with (factor * pivot row)
+                self._normalize_pivot_row(constr_id, entering_index)
             else:
-                factor = -(self.constraints[constr_id][entering_index] /
-                           self.constraints[basis_index][entering_index])
+                self._update_non_pivot_row(constr_id, basis_index, entering_index)
 
-                for var_id in range(self.variables_number):
-                    self.constraints[constr_id][var_id] = self.format(
-                        self.constraints[constr_id][var_id] +
-                        factor * self.constraints[basis_index][var_id]
-                    )
-
-                self.constraints_rhs[constr_id] = self.format(
-                    self.constraints_rhs[constr_id] +
-                    factor * self.constraints_rhs[basis_index]
-                )
-
-        # Apply changes to z-row
-        factor_z = -(self.z[entering_index] /
-                     self.constraints[basis_index][entering_index])
-
-        for var_id in range(self.variables_number):
-            self.z[var_id] = self.format(
-                self.z[var_id] +
-                factor_z * self.constraints[basis_index][var_id]
+    # Normalizes the pivot row by dividing all elements by the pivot value
+    def _normalize_pivot_row(self, constr_id, entering_index):
+        divisor = self._constraints[constr_id][entering_index]
+        for var_id in range(self._variables_number):
+            self._constraints[constr_id][var_id] = self._format(
+                self._constraints[constr_id][var_id] / divisor
             )
-        self.solution = self.format(
-            self.solution +
-            factor_z * self.constraints_rhs[basis_index]
+        self._constraints_rhs[constr_id] = self._format(
+            self._constraints_rhs[constr_id] / divisor
         )
 
-        # print(self.z, self.solution)
-        # for row in self.constraints:
-        #     print(" ".join(f"{val:3}" for val in row))
+    # Updates values in the non-pivot row
+    def _update_non_pivot_row(self, constr_id, basis_index, entering_index):
+        factor = -(self._constraints[constr_id][entering_index] /
+                   self._constraints[basis_index][entering_index])
+        for var_id in range(self._variables_number):
+            self._constraints[constr_id][var_id] = self._format(
+                self._constraints[constr_id][var_id] +
+                factor * self._constraints[basis_index][var_id]
+            )
+        self._constraints_rhs[constr_id] = self._format(
+            self._constraints_rhs[constr_id] +
+            factor * self._constraints_rhs[basis_index]
+        )
+
+    # Updates values in the z-row
+    def _update_z_row(self, basis_index, entering_index):
+        factor_z = -(self._z[entering_index] /
+                     self._constraints[basis_index][entering_index])
+        for var_id in range(self._variables_number):
+            self._z[var_id] = self._format(
+                self._z[var_id] +
+                factor_z * self._constraints[basis_index][var_id]
+            )
+        self._solution = self._format(
+            self._solution +
+            factor_z * self._constraints_rhs[basis_index]
+        )
+
+    # Gets the basic variables values from the constraints_rhs "column"
+    def _get_basic_variables_values(self):
+        basic_variables_values = []
+
+        for basic_id in self._basic_variables:
+            if basic_id in self._basis:
+                index = self._basis.index(basic_id)
+                basic_variables_values.append(self._constraints_rhs[index])
+            else:
+                basic_variables_values.append(0)
+
+        return basic_variables_values
 
     # Returns True if there is at least one negative element in z-row
-    def can_continue(self):
-        for elem in self.z:
+    def _can_continue(self):
+        for elem in self._z:
             if elem < 0: return True
+        return False
 
     # Returns True if for entering variable
     # there is at least one positive value in constraints
-    def is_applicable(self, entering_index):
-        for elem in self.constraints[entering_index]:
-            if elem > 0: return True
+    def _is_applicable(self, entering_index):
+        for i in range(self._constraints_number):
+            if self._constraints[i][entering_index] > 0: return True
+        return False
 
-    def format(self, num):
-        return round(num, self.accuracy)
+    # Formats the number for the defined accuracy
+    def _format(self, num):
+        return round(num, self._accuracy)
 
 
 def main():
-    z = [9, 10, 16]
-    constraints = [
+    accuracy = 4
+
+    z_mx = [9, 10, 16]
+    constraints_mx = [
         [18, 15, 12],
         [6, 4, 8],
         [5, 3, 3],
     ]
-    constraints_rhs = [360, 192, 180]
-    accuracy = 4
+    constraints_rhs_mx = [360, 192, 180]
 
-    simplex_method = Simplex(z, constraints, constraints_rhs, accuracy)
+    z_mn = [-2, 2, -6]
+    constraints_mn = [
+        [2, 1, -2],
+        [1, 2, 4],
+        [1, -1, 2],
+    ]
+    constraints_rhs_mn = [24, 23, 10]
 
-    entering = simplex_method.define_entering()
-    leaving = simplex_method.define_leaving(entering)
+    z_inapplicable = [1, 1]
+    constraints_inapplicable = [
+        [-1, 1],
+        [-1, -1],
+    ]
+    constraints_rhs_inapplicable = [1, -2]
 
-    print(entering, leaving)
-    print(simplex_method.can_continue(), simplex_method.is_applicable(entering))
+    simplex_method_mx = Simplex(z_mx,
+                                constraints_mx,
+                                constraints_rhs_mx,
+                                accuracy)
+    maximum = simplex_method_mx.compute_maximum()
+    print(maximum)
 
-    simplex_method.change_pivot(entering, leaving)
+    simplex_method_mn = Simplex(z_mn,
+                                constraints_mn,
+                                constraints_rhs_mn,
+                                accuracy)
+    minimum = simplex_method_mn.compute_minimum()
+    print(minimum)
+
+    simplex_method_inapplicable = Simplex(z_inapplicable,
+                                          constraints_inapplicable,
+                                          constraints_rhs_inapplicable,
+                                          accuracy)
+    inapplicable = simplex_method_inapplicable.compute_maximum()
+    print(inapplicable is None)
+
+
 
 
 if __name__ == '__main__':
