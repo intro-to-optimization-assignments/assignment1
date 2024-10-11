@@ -13,25 +13,25 @@ class Simplex:
         self._constraints = constraints
         self._constraints_rhs = constraints_rhs
         self._solution = 0
-        self._constraints_number = len(constraints)
-        self._basic_variables_number = len(constraints[0])
-        self._variables_number = self._basic_variables_number + self._constraints_number
+        self._num_of_const = len(constraints)
+        self._basic_variables_number = len(constraints)
+        self._variables_number = self._basic_variables_number + self._num_of_const
         self._basic_variables = list(range(self._basic_variables_number))
         self._basis = list(
             range(self._basic_variables_number,
-                  self._basic_variables_number + self._constraints_number)
+                  self._basic_variables_number + self._num_of_const)
         )
         self._accuracy = accuracy
         self.__equally_negative_variables = []
 
-        for i in range(self._constraints_number):
-            constraints[i] += [0] * self._constraints_number
-            constraints[i][self._basic_variables_number + i] = 1
+        for i in range(self._num_of_const):
+            constraints[i] += [0] * self._num_of_const
+            constraints[i][len(self._z) + i] = 1
 
-        for i in range(self._basic_variables_number):
+        for i in range(len(z)):
             self._z[i] *= -1
 
-        self._z += [0] * self._constraints_number
+        self._z += [0] * self._num_of_const
 
     # Computes the maximum value for z
     def compute_maximum(self):
@@ -75,10 +75,6 @@ class Simplex:
                 min_z = variable
                 entering_index = self._z.index(variable)
 
-        # Filling the list in case we have several maximally negative variables in z-row
-        self.__equally_negative_variables = \
-            [i for i in range(self._variables_number) if self._z[i] == self._z[entering_index]]
-
         return entering_index
 
     # Gets the index of the leaving variable from the z-row
@@ -86,7 +82,7 @@ class Simplex:
         min_elem = INFINITY
         basis_leaving_index = -1
 
-        for i in range(self._constraints_number):
+        for i in range(self._num_of_const):
             if self._constraints[i][entering_index] <= 0:
                 continue
 
@@ -110,7 +106,7 @@ class Simplex:
 
     # Updates the whole "table"
     def _update_constraints(self, basis_index, entering_index):
-        for constr_id in range(self._constraints_number):
+        for constr_id in range(self._num_of_const):
             if constr_id == basis_index:
                 self._normalize_pivot_row(constr_id, entering_index)
             else:
@@ -119,7 +115,7 @@ class Simplex:
     # Normalizes the pivot row by dividing all elements by the pivot value
     def _normalize_pivot_row(self, constr_id, entering_index):
         divisor = self._constraints[constr_id][entering_index]
-        for var_id in range(self._variables_number):
+        for var_id in range(self._variables_number-1):
             self._constraints[constr_id][var_id] = self._format(
                 self._constraints[constr_id][var_id] / divisor
             )
@@ -131,7 +127,7 @@ class Simplex:
     def _update_non_pivot_row(self, constr_id, basis_index, entering_index):
         factor = -(self._constraints[constr_id][entering_index] /
                    self._constraints[basis_index][entering_index])
-        for var_id in range(self._variables_number):
+        for var_id in range(self._variables_number-1):
             self._constraints[constr_id][var_id] = self._format(
                 self._constraints[constr_id][var_id] +
                 factor * self._constraints[basis_index][var_id]
@@ -145,7 +141,7 @@ class Simplex:
     def _update_z_row(self, basis_index, entering_index):
         factor_z = -(self._z[entering_index] /
                      self._constraints[basis_index][entering_index])
-        for var_id in range(self._variables_number):
+        for var_id in range(self._variables_number-1):
             self._z[var_id] = self._format(
                 self._z[var_id] +
                 factor_z * self._constraints[basis_index][var_id]
@@ -177,7 +173,7 @@ class Simplex:
     # Returns True if for entering variable
     # there is at least one positive value in constraints
     def _is_applicable(self, entering_index):
-        for i in range(self._constraints_number):
+        for i in range(self._num_of_const):
             if self._constraints[i][entering_index] > 0: return True
         return False
 
@@ -189,14 +185,13 @@ class Simplex:
 # Reads input and gets z, constraints, constraints_rhs, and accuracy
 def read_input():
     z = list(map(float, input("A vector of coefficients of objective function: ").split()))
-
+    num_of_const = int(input("Number of constraints: "))
     print("A matrix of coefficients of constraint function:")
     constraints = []
     constraint = list(map(float, input().split()))
-    constraints_number = len(constraint)
     constraints.append(constraint)
 
-    for _ in range(constraints_number - 1):
+    for _ in range(num_of_const - 1):
         constraint = list(map(float, input().split()))
         constraints.append(constraint)
 
