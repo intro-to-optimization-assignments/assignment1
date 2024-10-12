@@ -1,4 +1,5 @@
 from json.encoder import INFINITY
+from decimal import *
 
 
 # Prints the basic variables as "x1 = basic_variables_values[0], x2 = basic_variables_values[1],... "
@@ -38,8 +39,9 @@ class Simplex:
         while True:
             if not self._can_continue():
                 basic_variables_values = self._get_basic_variables_values()
-
+                self._final_format_variables(basic_variables_values)
                 format_output(basic_variables_values)
+                self._solution = self._final_format_solution(self._solution)
                 return self._solution
 
             entering = self._define_entering()
@@ -115,41 +117,30 @@ class Simplex:
     # Normalizes the pivot row by dividing all elements by the pivot value
     def _normalize_pivot_row(self, constr_id, entering_index):
         divisor = self._constraints[constr_id][entering_index]
-        for var_id in range(self._variables_number-1):
-            self._constraints[constr_id][var_id] = self._format(
-                self._constraints[constr_id][var_id] / divisor
-            )
-        self._constraints_rhs[constr_id] = self._format(
-            self._constraints_rhs[constr_id] / divisor
-        )
+        for var_id in range(self._variables_number - 1):
+            self._constraints[constr_id][var_id] = self._constraints[constr_id][var_id] / divisor
+
+        self._constraints_rhs[constr_id] = self._constraints_rhs[constr_id] / divisor
 
     # Updates values in the non-pivot row
     def _update_non_pivot_row(self, constr_id, basis_index, entering_index):
         factor = -(self._constraints[constr_id][entering_index] /
                    self._constraints[basis_index][entering_index])
-        for var_id in range(self._variables_number-1):
-            self._constraints[constr_id][var_id] = self._format(
-                self._constraints[constr_id][var_id] +
-                factor * self._constraints[basis_index][var_id]
-            )
-        self._constraints_rhs[constr_id] = self._format(
-            self._constraints_rhs[constr_id] +
-            factor * self._constraints_rhs[basis_index]
-        )
+        for var_id in range(self._variables_number - 1):
+            self._constraints[constr_id][var_id] = self._constraints[constr_id][var_id] + \
+                                                   factor * self._constraints[basis_index][var_id]
+        self._constraints_rhs[constr_id] = self._constraints_rhs[constr_id] + \
+                                           factor * self._constraints_rhs[basis_index]
 
     # Updates values in the z-row
     def _update_z_row(self, basis_index, entering_index):
         factor_z = -(self._z[entering_index] /
                      self._constraints[basis_index][entering_index])
-        for var_id in range(self._variables_number-1):
-            self._z[var_id] = self._format(
-                self._z[var_id] +
-                factor_z * self._constraints[basis_index][var_id]
-            )
-        self._solution = self._format(
-            self._solution +
-            factor_z * self._constraints_rhs[basis_index]
-        )
+        for var_id in range(self._variables_number - 1):
+            self._z[var_id] = self._z[var_id] + \
+                              factor_z * self._constraints[basis_index][var_id]
+        self._solution = self._solution + \
+                         factor_z * self._constraints_rhs[basis_index]
 
     # Gets the basic variables values from the constraints_rhs "column"
     def _get_basic_variables_values(self):
@@ -177,9 +168,23 @@ class Simplex:
             if self._constraints[i][entering_index] > 0: return True
         return False
 
-    # Formats the number for the defined accuracy
-    def _format(self, num):
-        return round(num, self._accuracy)
+    def _final_format_variables(self, basic_variables_values):
+        quant = Decimal("1." + "0" * (self._accuracy))
+        for i, num in enumerate(basic_variables_values):
+            string_num = Decimal(str(num))
+            if 'E' in str(string_num.quantize(quant)):
+                basic_variables_values[i] = "0." + "0" * (self._accuracy)
+            else:
+                basic_variables_values[i] = str(string_num.quantize(quant))
+
+    def _final_format_solution(self, solution):
+        quant = Decimal("1." + "0" * self._accuracy)
+        string_num = Decimal(str(solution))
+        if 'E' in str(string_num.quantize(quant)):
+            solution = "0." + "0" * (self._accuracy + 1)
+        else:
+            solution = string_num.quantize(quant)
+        return str(solution)[:-1]
 
 
 # Reads input and gets z, constraints, constraints_rhs, and accuracy
